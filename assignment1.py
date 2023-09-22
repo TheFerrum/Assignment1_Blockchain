@@ -14,11 +14,33 @@ class Block:
         self.timestamp = timestamp
         self.transactions = transactions
         self.nonce = nonce
+        self.merkle_root = self.calculate_merkle_root()
         self.hash = self.calculate_hash()
 
     def calculate_hash(self):
         data = str(self.index) + self.previous_hash + str(self.timestamp) + str(self.transactions) + str(self.nonce)
         return hashlib.sha256(data.encode()).hexdigest()
+    
+    def calculate_transaction_hashes(self, transaction_data):
+        # Calculate the SHA-256 hash for each transaction data
+        return [hashlib.sha256(data.encode()).hexdigest() for data in transaction_data]
+    
+    def calculate_merkle_root(self):
+        # Calculate the Merkle root from the list of transaction data
+        transaction_data = [tx.sender + tx.recipient + str(tx.amount) for tx in self.transactions]
+        transaction_hashes = self.calculate_transaction_hashes(transaction_data)
+        
+        # Check if there are no transactions (empty block)
+        if not transaction_hashes:
+            return "0"
+        
+        while len(transaction_hashes) > 1:
+            next_level = []
+            for i in range(0, len(transaction_hashes), 2):
+                hash_pair = transaction_hashes[i] + (transaction_hashes[i+1] if i+1 < len(transaction_hashes) else transaction_hashes[i])
+                next_level.append(hashlib.sha256(hash_pair.encode()).hexdigest())
+            transaction_hashes = next_level
+        return transaction_hashes[0]
 
 class Blockchain:
     def __init__(self):
@@ -66,21 +88,7 @@ class Blockchain:
                     balance += tx.amount
         return balance
 
-# Create a blockchain
 my_blockchain = Blockchain()
-
-# Add blocks to the blockchain
-block1 = Block(1, my_blockchain.get_latest_block().hash, int(time.time()), "Data 1")
-my_blockchain.add_block(block1)
-
-block2 = Block(2, my_blockchain.get_latest_block().hash, int(time.time()), "Data 2")
-my_blockchain.add_block(block2)
-
-# Print the blockchain
-for block in my_blockchain.chain:
-    print(f"Block {block.index} - Hash: {block.hash}")
-
-my_blockchain2 = Blockchain()
 
 # Create some transactions
 tx1 = Transaction("Alice", "Bob", 10)
@@ -88,15 +96,15 @@ tx2 = Transaction("Bob", "Charlie", 5)
 tx3 = Transaction("Alice", "Charlie", 3)
 
 # Add transactions to the pending transaction pool
-my_blockchain2.create_transaction(tx1)
-my_blockchain2.create_transaction(tx2)
-my_blockchain2.create_transaction(tx3)
+my_blockchain.create_transaction(tx1)
+my_blockchain.create_transaction(tx2)
+my_blockchain.create_transaction(tx3)
 
 # Mine a new block to include these transactions
-my_blockchain2.mine_pending_transactions("Miner")
+my_blockchain.mine_pending_transactions("Miner")
 
 # Check balances
-print("Alice's balance:", my_blockchain2.get_balance("Alice"))
-print("Bob's balance:", my_blockchain2.get_balance("Bob"))
-print("Charlie's balance:", my_blockchain2.get_balance("Charlie"))
-print("Miner's balance:", my_blockchain2.get_balance("Miner"))
+print("Alice's balance:", my_blockchain.get_balance("Alice"))
+print("Bob's balance:", my_blockchain.get_balance("Bob"))
+print("Charlie's balance:", my_blockchain.get_balance("Charlie"))
+print("Miner's balance:", my_blockchain.get_balance("Miner"))
