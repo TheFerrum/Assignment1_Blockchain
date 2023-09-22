@@ -41,6 +41,18 @@ class Block:
                 next_level.append(hashlib.sha256(hash_pair.encode()).hexdigest())
             transaction_hashes = next_level
         return transaction_hashes[0]
+    
+    def is_valid(self):
+        # Check if the block's hash starts with a given number of leading zeros (proof-of-work)
+        difficulty = 2  # Adjust as needed
+        if self.hash[:difficulty] != '0' * difficulty:
+            return False
+
+        # Check if the Merkle root matches the calculated Merkle root
+        if self.merkle_root != self.calculate_merkle_root():
+            return False
+
+        return True
 
 class Blockchain:
     def __init__(self):
@@ -65,9 +77,15 @@ class Blockchain:
         new_block = Block(len(self.chain), self.get_latest_block().hash, int(time.time()), self.pending_transactions)
         self.pending_transactions = []  # Clear pending transactions
         new_block.nonce = self.proof_of_work(new_block)
-        self.chain.append(new_block)
-        print(f"Block #{new_block.index} has been mined!")
-        return new_block
+        
+        # Check if the new block is valid before adding it to the chain
+        if new_block.is_valid():
+            self.chain.append(new_block)
+            print(f"Block #{new_block.index} has been mined and added to the chain!")
+            return new_block
+        else:
+            print("Invalid block! Block was not added to the chain.")
+            return None
 
     def proof_of_work(self, block, difficulty=2):
         while block.hash[:difficulty] != '0' * difficulty:
